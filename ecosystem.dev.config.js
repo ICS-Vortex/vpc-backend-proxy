@@ -10,7 +10,7 @@ const env = {
   BACKEND_ENV_FILE: process.env.BACKEND_ENV_FILE || path.join(workspaceDir, '../backend/.env'),
   LOGS_DIR: process.env.LOGS_DIR || path.join(workspaceDir, 'logs'),
   APP_PORT: process.env.APP_PORT || '4006',
-  PROXY_PUBLIC_HOST: process.env.PROXY_PUBLIC_HOST || 'proxy.dev.virpil-servers.com',
+  PROXY_PUBLIC_HOST: process.env.PROXY_PUBLIC_HOST || 'lua.dev.virpil-servers.com',
   NODE_ENV: process.env.NODE_ENV || 'production',
 };
 

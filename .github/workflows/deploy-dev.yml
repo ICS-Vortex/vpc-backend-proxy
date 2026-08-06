@@ -72,8 +72,8 @@ jobs:
               exit 1
             fi
 
-            if curl -fsS -o /dev/null --max-time 10 -H "Host: proxy.dev.virpil-servers.com" http://127.0.0.1/; then
-              echo "nginx proxy.dev.virpil-servers.com OK"
+            if curl -fsS -o /dev/null --max-time 10 -H "Host: lua.dev.virpil-servers.com" http://127.0.0.1/; then
+              echo "nginx lua.dev.virpil-servers.com OK"
             else
-              echo "WARN: nginx proxy.dev.virpil-servers.com check failed — run deploy/dcs-lua-api-dev-bootstrap.sh on VPS" >&2
+              echo "WARN: nginx lua.dev.virpil-servers.com check failed — run deploy/dcs-lua-api-dev-bootstrap.sh on VPS" >&2
             fi

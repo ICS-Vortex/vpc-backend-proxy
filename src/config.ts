@@ -57,6 +57,6 @@ export const config = {
   },
   server: {
     port: Number(env.APP_PORT || 4006),
-    publicHost: env.PROXY_PUBLIC_HOST?.trim() || 'proxy.vpc.local',
+    publicHost: env.PROXY_PUBLIC_HOST?.trim() || 'lua.vpc.local',
   },
 };

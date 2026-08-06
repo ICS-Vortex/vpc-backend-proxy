@@ -1,0 +1,79 @@
+name: dcs-lua-api deploy dev
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: backend-proxy-dev-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy DCS LUA HTTP API to dev VPS
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Validate deployment configuration
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -eu
+          for key in DEPLOY_HOST DEPLOY_PORT DEPLOY_USER DEPLOY_SSH_KEY; do
+            if [ -z "${!key:-}" ]; then
+              echo "$key is required for deploy jobs." >&2
+              exit 1
+            fi
+          done
+
+      - name: Deploy release on dev VPS
+        uses: appleboy/ssh-action@v1.2.1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -eu
+
+            cd /opt/virpil/dev/backend-proxy/repo
+
+            git fetch origin dev
+            git reset --hard origin/dev
+
+            WORKSPACE_DIR=/opt/virpil/dev/backend-proxy/repo \
+            DEPLOY_ROOT=/opt/virpil/dev/backend-proxy \
+            CURRENT_LINK=/opt/virpil/dev/backend-proxy/current \
+            RELEASES_TO_KEEP=5 \
+            BACKEND_ENV_FILE=/opt/virpil/dev/backend/current/.env.development.local \
+            LOGS_DIR=/opt/virpil/dev/backend-proxy/logs \
+            sh scripts/build-dev.sh
+
+            ready=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if curl -fsS -o /dev/null --max-time 10 http://127.0.0.1:4006/; then
+                ready=1
+                break
+              fi
+              echo "dcs-lua-api not healthy yet, retrying ($attempt/10)"
+              sleep 3
+            done
+            if [ "$ready" -ne 1 ]; then
+              echo "dcs-lua-api health check failed" >&2
+              exit 1
+            fi
+
+            if curl -fsS -o /dev/null --max-time 10 -H "Host: proxy.dev.virpil-servers.com" http://127.0.0.1/; then
+              echo "nginx proxy.dev.virpil-servers.com OK"
+            else
+              echo "WARN: nginx proxy.dev.virpil-servers.com check failed — run deploy/dcs-lua-api-dev-bootstrap.sh on VPS" >&2
+            fi

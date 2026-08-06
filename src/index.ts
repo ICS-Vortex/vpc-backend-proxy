@@ -14,7 +14,9 @@ app.use(errorHandlerMiddleware);
 const server = http.createServer(app);
 
 server.listen(config.server.port, () => {
-  logger.info(`DCS proxy API listening on http://0.0.0.0:${config.server.port} (public: http://${config.server.publicHost})`);
+  logger.info(
+    `DCS LUA HTTP API on http://0.0.0.0:${config.server.port} (public vhost: http://${config.server.publicHost})`,
+  );
 });
 
 process.on('unhandledRejection', (reason) => {

@@ -59,4 +59,10 @@ export const config = {
     port: Number(env.APP_PORT || 4006),
     publicHost: env.PROXY_PUBLIC_HOST?.trim() || 'lua.vpc.local',
   },
+  sentry: {
+    dsn: env.SENTRY_DSN?.trim() || '',
+    environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV || 'dev',
+    release: env.SENTRY_RELEASE?.trim() || '',
+    tracesSampleRate: Number(env.SENTRY_TRACES_SAMPLE_RATE ?? 0),
+  },
 };

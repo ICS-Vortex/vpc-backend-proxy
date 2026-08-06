@@ -1,9 +1,14 @@
+import { initSentry } from '@/observability/sentry';
+
+initSentry();
+
 import logger from '@/logger';
 import express, { json } from 'express';
 import http from 'http';
 import { config } from '@/config';
 import proxyRouter from '@/routers/index';
 import { errorHandlerMiddleware } from '@/middleware/errorHandler';
+import { logUnhandledRejection, logUncaughtException } from '@/observability/runtimeLogger';
 
 const app = express();
 
@@ -20,10 +25,10 @@ server.listen(config.server.port, () => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled promise rejection', { reason: String(reason) });
+  logUnhandledRejection(reason);
 });
 
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+  logUncaughtException(error);
   process.exit(1);
 });

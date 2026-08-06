@@ -1,6 +1,8 @@
 import { db } from '@/db';
 import { DCS_SERVER_HEADER } from '@/constants/dcsHeaders';
 import { queryProxyServerByIdentifier } from '@/queries/proxy/proxyQueries';
+import { captureException } from '@/observability/sentry';
+import { getRequestPath, getRequestRoute } from '@/observability/runtimeLogger';
 import type { NextFunction, Request, Response } from 'express';
 
 export type ProxyServerContext = {
@@ -54,7 +56,15 @@ export const requireProxyServer = async (req: Request, res: Response, next: Next
 
     req.proxyServer = server;
     return next();
-  } catch {
+  } catch (error) {
+    captureException(error, {
+      method: req.method,
+      route: getRequestRoute(req),
+      path: getRequestPath(req),
+      statusCode: 403,
+      component: 'auth',
+      eventType: 'proxy_server_auth',
+    });
     return res.status(403).json([]);
   }
 };

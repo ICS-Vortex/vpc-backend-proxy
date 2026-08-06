@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import logger from '@/logger';
+import { captureException } from '@/observability/sentry';
+import { getRequestPath, getRequestRoute, logHttpException } from '@/observability/runtimeLogger';
 
 type HttpError = Error & {
   status?: number;
@@ -8,7 +9,7 @@ type HttpError = Error & {
 
 export const errorHandlerMiddleware = (
   error: unknown,
-  _request: Request,
+  request: Request,
   response: Response,
   next: NextFunction,
 ): void => {
@@ -24,11 +25,18 @@ export const errorHandlerMiddleware = (
       ? httpError.status
       : 500;
 
-  logger.error('HTTP exception', {
-    statusCode,
-    error: httpError instanceof Error ? httpError.message : String(error),
-    stack: httpError instanceof Error ? httpError.stack : undefined,
-  });
+  logHttpException(request, error, statusCode);
+
+  if (statusCode >= 500) {
+    captureException(error, {
+      method: request.method,
+      route: getRequestRoute(request),
+      path: getRequestPath(request),
+      statusCode,
+      component: 'http',
+      eventType: 'http_exception',
+    });
+  }
 
   response.status(statusCode).json({
     error: statusCode >= 500 ? 'Internal Server Error' : httpError.message || 'Request failed',

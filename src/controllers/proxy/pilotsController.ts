@@ -26,6 +26,11 @@ export const proxyPilotsCurrent = async (req: Request, res: Response) => {
 };
 
 export const proxyPilotsAllocations = async (req: Request, res: Response) => {
+  const server = req.proxyServer;
+  if (!server) {
+    return res.status(403).json([]);
+  }
+
   const activityId = Number(req.params.activity);
   if (!Number.isInteger(activityId) || activityId <= 0) {
     return res.status(200).json([]);

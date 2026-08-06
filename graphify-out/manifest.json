@@ -1,0 +1,162 @@
+{
+  "ecosystem.dev.config.js": {
+    "mtime": 1786028436.7110064,
+    "ast_hash": "ea741f8b5e35351cae990db53cdedfa8",
+    "semantic_hash": "ea741f8b5e35351cae990db53cdedfa8"
+  },
+  "eslint.config.mts": {
+    "mtime": 1786026802.630942,
+    "ast_hash": "6ffa4ae66ffd483845bf3995584935a0",
+    "semantic_hash": "6ffa4ae66ffd483845bf3995584935a0"
+  },
+  "logs/.13be9bb073d9a2c4d7840408753154a097481b69-audit.json": {
+    "mtime": 1786028644.0352583,
+    "ast_hash": "1374503acb61b0d94c2fef5e4b6a15d1",
+    "semantic_hash": "1374503acb61b0d94c2fef5e4b6a15d1"
+  },
+  "logs/.4b87e1eadae381dd44c47d0ce72e5e8141214e4b-audit.json": {
+    "mtime": 1786028644.0352583,
+    "ast_hash": "c389060bc7a33ee918b8dbe3fcdb6a59",
+    "semantic_hash": "c389060bc7a33ee918b8dbe3fcdb6a59"
+  },
+  "package.json": {
+    "mtime": 1786028192.4567537,
+    "ast_hash": "d84267619cffbc1119805b3eca9c2ae0",
+    "semantic_hash": "d84267619cffbc1119805b3eca9c2ae0"
+  },
+  "scripts/build-dev.sh": {
+    "mtime": 1786027347.193418,
+    "ast_hash": "b5f5c246519f49a1185407d8169a25bd",
+    "semantic_hash": "b5f5c246519f49a1185407d8169a25bd"
+  },
+  "src/config.ts": {
+    "mtime": 1786028436.7113981,
+    "ast_hash": "5520e7dcb426f8093da84f9ec9890511",
+    "semantic_hash": "5520e7dcb426f8093da84f9ec9890511"
+  },
+  "src/constants/dcsHeaders.ts": {
+    "mtime": 1786026799.4376113,
+    "ast_hash": "e9dfb53de4f2d8998800f161715924f6",
+    "semantic_hash": "e9dfb53de4f2d8998800f161715924f6"
+  },
+  "src/controllers/proxy/activitiesController.ts": {
+    "mtime": 1786029065.392357,
+    "ast_hash": "51eb5be9b0a484c2eb04861939f9b9ab",
+    "semantic_hash": "51eb5be9b0a484c2eb04861939f9b9ab"
+  },
+  "src/controllers/proxy/indexController.ts": {
+    "mtime": 1786026799.4389236,
+    "ast_hash": "24fdd1703d320dd8269cfd9547e5d71d",
+    "semantic_hash": "24fdd1703d320dd8269cfd9547e5d71d"
+  },
+  "src/controllers/proxy/pilotsController.ts": {
+    "mtime": 1786029065.392357,
+    "ast_hash": "0d6c0ab10d5bf2c9bb5d25bf8f701059",
+    "semantic_hash": "0d6c0ab10d5bf2c9bb5d25bf8f701059"
+  },
+  "src/controllers/proxy/racesController.ts": {
+    "mtime": 1786026799.4389694,
+    "ast_hash": "8b5b8789048f9688e7f0155b58090152",
+    "semantic_hash": "8b5b8789048f9688e7f0155b58090152"
+  },
+  "src/controllers/proxy/rightsController.ts": {
+    "mtime": 1786026799.438989,
+    "ast_hash": "c524e6715f400783094495cd8811f2f3",
+    "semantic_hash": "c524e6715f400783094495cd8811f2f3"
+  },
+  "src/controllers/proxy/seriesController.ts": {
+    "mtime": 1786026799.439013,
+    "ast_hash": "98d13680c3074f8d748d0289b424f7cf",
+    "semantic_hash": "98d13680c3074f8d748d0289b424f7cf"
+  },
+  "src/db.ts": {
+    "mtime": 1786026805.84642,
+    "ast_hash": "1aef530c4c8c5425104eaa62fc3e8bcc",
+    "semantic_hash": "1aef530c4c8c5425104eaa62fc3e8bcc"
+  },
+  "src/index.ts": {
+    "mtime": 1786027359.336226,
+    "ast_hash": "0c754f0aba595b3d3f7ef6d8f7e08785",
+    "semantic_hash": "0c754f0aba595b3d3f7ef6d8f7e08785"
+  },
+  "src/logger.ts": {
+    "mtime": 1786026806.990227,
+    "ast_hash": "a13c524a61368f9e2340529dacd4c2da",
+    "semantic_hash": "a13c524a61368f9e2340529dacd4c2da"
+  },
+  "src/middleware/errorHandler.ts": {
+    "mtime": 1786026808.4112282,
+    "ast_hash": "370cbb1193efeab3ae7e62768d404a68",
+    "semantic_hash": "370cbb1193efeab3ae7e62768d404a68"
+  },
+  "src/middleware/proxyServerAuth.ts": {
+    "mtime": 1786026799.4402468,
+    "ast_hash": "1fa9c103ad1e95c52d2f822648fc31c0",
+    "semantic_hash": "1fa9c103ad1e95c52d2f822648fc31c0"
+  },
+  "src/queries/proxy/proxyQueries.ts": {
+    "mtime": 1786026799.441628,
+    "ast_hash": "afe5d08d23979109497fee447da112aa",
+    "semantic_hash": "afe5d08d23979109497fee447da112aa"
+  },
+  "src/queries/proxy/proxyRacingQueries.ts": {
+    "mtime": 1786026799.4416625,
+    "ast_hash": "fa820ee54d567e6ee0bad43f5eb8cba2",
+    "semantic_hash": "fa820ee54d567e6ee0bad43f5eb8cba2"
+  },
+  "src/queries/proxy/proxySeriesQueries.ts": {
+    "mtime": 1786026799.441691,
+    "ast_hash": "15a331cc75c668d2c3d7bb7130f45b15",
+    "semantic_hash": "15a331cc75c668d2c3d7bb7130f45b15"
+  },
+  "src/queries/race/RaceLayoutQueries.ts": {
+    "mtime": 1786026799.442951,
+    "ast_hash": "b1940273b6a5436dcacc48621ea77645",
+    "semantic_hash": "b1940273b6a5436dcacc48621ea77645"
+  },
+  "src/repositories/proxy/ProxyRacingRepository.ts": {
+    "mtime": 1786026799.44421,
+    "ast_hash": "389c9c21b3bcc8d3cc17befdfddfb571",
+    "semantic_hash": "389c9c21b3bcc8d3cc17befdfddfb571"
+  },
+  "src/repositories/proxy/ProxyRepository.ts": {
+    "mtime": 1786026799.4442458,
+    "ast_hash": "c7ef34536ee92511c8edac942b2e5ea1",
+    "semantic_hash": "c7ef34536ee92511c8edac942b2e5ea1"
+  },
+  "src/repositories/proxy/ProxySeriesRepository.ts": {
+    "mtime": 1786026799.4442692,
+    "ast_hash": "228b751d3356c94a7a419dc454c2b485",
+    "semantic_hash": "228b751d3356c94a7a419dc454c2b485"
+  },
+  "src/routers/index.ts": {
+    "mtime": 1786029065.392357,
+    "ast_hash": "8010f4de6df3f9b7027551bd1869e8f4",
+    "semantic_hash": "8010f4de6df3f9b7027551bd1869e8f4"
+  },
+  "src/services/proxy/SeriesScoringService.ts": {
+    "mtime": 1786026799.4467244,
+    "ast_hash": "88b47a9058d0f0b1c63550e64a835eb6",
+    "semantic_hash": "88b47a9058d0f0b1c63550e64a835eb6"
+  },
+  "src/services/proxy/proxySerializers.ts": {
+    "mtime": 1786026799.446761,
+    "ast_hash": "97a501c7dd9e84527c8c9bd01c39705a",
+    "semantic_hash": "97a501c7dd9e84527c8c9bd01c39705a"
+  },
+  "src/tables.ts": {
+    "mtime": 1786026809.4283998,
+    "ast_hash": "836f97af2a5b16b41e721b466de3449c",
+    "semantic_hash": "836f97af2a5b16b41e721b466de3449c"
+  },
+  "tsconfig.json": {
+    "mtime": 1786026802.1972594,
+    "ast_hash": "e648b332b5fe9cd7a9fb02cee164c354",
+    "semantic_hash": "e648b332b5fe9cd7a9fb02cee164c354"
+  },
+  "types/express/index.d.ts": {
+    "mtime": 1786026803.5703382,
+    "ast_hash": "6805355286d2447cf555811e6bb9973f",
+    "semantic_hash": "6805355286d2447cf555811e6bb9973f"
+  }
+}

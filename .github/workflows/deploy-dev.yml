@@ -35,6 +35,12 @@ jobs:
             fi
           done
 
+          if ! printf '%s\n' "$DEPLOY_SSH_KEY" | grep -Eq 'BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY'; then
+            echo "DEPLOY_SSH_KEY must be a PEM private key (include -----BEGIN ... PRIVATE KEY----- lines)." >&2
+            echo "Configure it in Settings → Environments → dev for this repository." >&2
+            exit 1
+          fi
+
       - name: Deploy release on dev VPS
         uses: appleboy/ssh-action@v1.2.1
         with:

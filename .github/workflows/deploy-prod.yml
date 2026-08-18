@@ -1,0 +1,299 @@
+name: backend-proxy deploy prod
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: Deploy to production after publishing the image
+        required: true
+        type: boolean
+        default: true
+      image_tag:
+        description: Optional extra image tag to publish
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: backend-proxy-prod
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  NODE_VERSION: '22'
+
+jobs:
+  ci:
+    if: github.ref_name == 'main'
+    name: Validate backend-proxy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run static checks
+        run: npm run check
+
+      - name: Build production bundle
+        run: npm run build
+
+  publish:
+    if: github.ref_name == 'main'
+    name: Build and publish container
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_name: ${{ steps.image.outputs.image_name }}
+      image_tag: ${{ steps.tags.outputs.primary_tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Normalize image name
+        id: image
+        run: |
+          set -eu
+          echo "image_name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/vpc-backend-proxy" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: tags
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.image_name }}
+          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -eu
+
+          sha_tag="sha-${GITHUB_SHA}"
+          primary_tag="$sha_tag"
+          tags="$IMAGE_NAME:$sha_tag"
+
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            tags="$tags"$'\n'"$IMAGE_NAME:main"
+          fi
+
+          if [ -n "$INPUT_IMAGE_TAG" ]; then
+            primary_tag="$INPUT_IMAGE_TAG"
+            tags="$tags"$'\n'"$IMAGE_NAME:$INPUT_IMAGE_TAG"
+          fi
+
+          {
+            echo "primary_tag=$primary_tag"
+            echo 'tags<<EOF'
+            printf '%s\n' "$tags"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=backend-proxy
+          cache-to: type=gha,mode=max,scope=backend-proxy
+
+  deploy_prod:
+    name: Deploy backend-proxy to production
+    needs: publish
+    if: github.ref_name == 'main' && (github.event_name == 'push' || inputs.deploy_prod)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Validate deployment configuration
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -eu
+          for key in DEPLOY_HOST DEPLOY_PORT DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH; do
+            if [ -z "${!key:-}" ]; then
+              echo "$key is required for deploy jobs." >&2
+              exit 1
+            fi
+          done
+
+      - name: Restart remote service
+        uses: appleboy/ssh-action@v1.2.1
+        env:
+          IMAGE_NAME: ${{ needs.publish.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.publish.outputs.image_tag }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_COMPOSE_FILE: docker-compose.prod.yml
+          DEPLOY_SERVICE_NAME: backend-proxy
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: IMAGE_NAME,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN,DEPLOY_COMPOSE_FILE,DEPLOY_SERVICE_NAME
+          script: |
+            set -eu
+
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+            export BACKEND_PROXY_IMAGE="$IMAGE_NAME:$IMAGE_TAG"
+            export TAG="$IMAGE_TAG"
+
+            docker compose -f "$DEPLOY_COMPOSE_FILE" config -q
+            docker compose -f "$DEPLOY_COMPOSE_FILE" pull "$DEPLOY_SERVICE_NAME"
+            docker compose -f "$DEPLOY_COMPOSE_FILE" stop "$DEPLOY_SERVICE_NAME" || true
+            docker compose -f "$DEPLOY_COMPOSE_FILE" rm -f "$DEPLOY_SERVICE_NAME" || true
+            docker compose -f "$DEPLOY_COMPOSE_FILE" up -d --no-deps "$DEPLOY_SERVICE_NAME"
+
+            ready=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if docker compose -f "$DEPLOY_COMPOSE_FILE" exec -T "$DEPLOY_SERVICE_NAME" wget -qO- http://127.0.0.1:4006/ >/dev/null 2>&1; then
+                ready=1
+                break
+              fi
+
+              echo "backend-proxy is not ready yet, retrying ($attempt/10)"
+              sleep 3
+            done
+
+            if [ "$ready" -ne 1 ]; then
+              echo "backend-proxy did not become ready in time" >&2
+              docker compose -f "$DEPLOY_COMPOSE_FILE" logs "$DEPLOY_SERVICE_NAME" --tail=200 >&2
+              exit 1
+            fi
+
+            docker image prune -f
+
+  notify_discord:
+    name: Send Discord build notification
+    if: ${{ always() && (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') }}
+    needs:
+      - ci
+      - publish
+      - deploy_prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post workflow result to Discord
+        uses: actions/github-script@v7
+        env:
+          DISCORD_BUILD_WEBHOOK: ${{ secrets.DISCORD_BUILD_WEBHOOK }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        with:
+          script: |
+            const webhook = process.env.DISCORD_BUILD_WEBHOOK;
+            if (!webhook) {
+              core.info('DISCORD_BUILD_WEBHOOK is not set; skipping Discord notification.');
+              return;
+            }
+
+            const needs = JSON.parse(process.env.NEEDS_JSON || '{}');
+            const jobResults = Object.entries(needs);
+            let status = 'success';
+
+            if (jobResults.some(([, job]) => job.result === 'failure')) {
+              status = 'failure';
+            } else if (jobResults.some(([, job]) => job.result === 'cancelled')) {
+              status = 'cancelled';
+            }
+
+            const runResponse = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            const run = runResponse.data;
+            const startedAt = new Date(run.run_started_at || run.created_at || Date.now());
+            const finishedAt = new Date(run.updated_at || Date.now());
+            const durationMs = Math.max(0, finishedAt.getTime() - startedAt.getTime());
+            const durationMinutes = Math.floor(durationMs / 60000);
+            const durationSeconds = Math.floor((durationMs % 60000) / 1000);
+            const durationLabel = durationMinutes > 0
+              ? `${durationMinutes}m ${durationSeconds}s`
+              : `${durationSeconds}s`;
+
+            const statusMeta = {
+              success: { emoji: '✅', color: 0x57F287, label: 'succeeded' },
+              failure: { emoji: '❌', color: 0xED4245, label: 'failed' },
+              cancelled: { emoji: '⚠️', color: 0xFEE75C, label: 'cancelled' },
+            };
+            const meta = statusMeta[status] || statusMeta.failure;
+            const branch = context.ref.replace('refs/heads/', '');
+            const shortSha = context.sha.slice(0, 7);
+            const commitMessage = (context.payload.head_commit?.message || run.head_commit?.message || 'Manual workflow run')
+              .split('\n')[0]
+              .slice(0, 180);
+            const summary = jobResults
+              .map(([jobName, job]) => `- ${jobName}: ${job.result || 'unknown'}`)
+              .join('\n')
+              .slice(0, 1024);
+
+            const payload = {
+              username: 'GitHub Actions',
+              avatar_url: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+              embeds: [
+                {
+                  title: `${meta.emoji} ${context.repo.repo} workflow ${meta.label}`,
+                  url: run.html_url,
+                  color: meta.color,
+                  description: commitMessage,
+                  fields: [
+                    { name: 'Repository', value: `${context.repo.owner}/${context.repo.repo}`, inline: true },
+                    { name: 'Branch', value: branch || 'unknown', inline: true },
+                    { name: 'Actor', value: context.actor, inline: true },
+                    { name: 'Workflow', value: run.name || context.workflow, inline: true },
+                    { name: 'Event', value: context.eventName, inline: true },
+                    { name: 'Duration', value: durationLabel, inline: true },
+                    { name: 'Commit', value: shortSha, inline: true },
+                    { name: 'Status', value: status, inline: true },
+                    { name: 'Run', value: `#${context.runNumber} / attempt ${context.runAttempt}`, inline: true },
+                    { name: 'Jobs', value: summary || 'No upstream jobs reported' },
+                  ],
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            };
+
+            const response = await fetch(webhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              const responseText = await response.text();
+              core.setFailed(`Discord webhook failed: ${response.status} ${responseText}`);
+            }

@@ -27,8 +27,8 @@ SELECT p.ucid
 FROM ${tableBanlist} b
 INNER JOIN ${tablePilots} p ON p.id = b.pilot_id
 WHERE b.server_id = $1
-  AND b.until IS NOT NULL
-  AND b.until > NOW()
+  AND b.banned_until IS NOT NULL
+  AND b.banned_until > NOW()
 ORDER BY b.id ASC
 `;
 

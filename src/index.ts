@@ -3,19 +3,12 @@ import { initSentry } from '@/observability/sentry';
 initSentry();
 
 import logger from '@/logger';
-import express, { json } from 'express';
 import http from 'http';
 import { config } from '@/config';
-import proxyRouter from '@/routers/index';
-import { errorHandlerMiddleware } from '@/middleware/errorHandler';
+import { createApp } from '@/createApp';
 import { logUnhandledRejection, logUncaughtException } from '@/observability/runtimeLogger';
 
-const app = express();
-
-app.use(json({ limit: '1mb' }));
-app.use(proxyRouter);
-app.use(errorHandlerMiddleware);
-
+const app = createApp();
 const server = http.createServer(app);
 
 server.listen(config.server.port, () => {

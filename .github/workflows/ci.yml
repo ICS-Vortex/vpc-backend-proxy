@@ -30,3 +30,6 @@ jobs:
 
       - name: tsc + eslint
         run: npm run check
+
+      - name: unit + route tests
+        run: npm run test

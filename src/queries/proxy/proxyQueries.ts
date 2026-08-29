@@ -76,17 +76,57 @@ ORDER BY a.id ASC
 `;
 
 export const queryProxyActivityParticipants = `
-SELECT
-  apr.activity_id AS "activityId",
-  p.ucid,
-  ${pilotCallsignSql} AS callsign,
-  plane.name AS aircraft,
-  apr.arrived
-FROM ${tableActivityParticipationRequests} apr
-INNER JOIN ${tablePilots} p ON p.id = apr.pilot_id
-LEFT JOIN ${tablePlanes} plane ON plane.id = apr.aircraft_id
-WHERE apr.activity_id = ANY($1::int[])
-ORDER BY apr.id ASC
+SELECT DISTINCT ON (source."activityId", source.ucid)
+  source."activityId",
+  source.ucid,
+  source.callsign,
+  source.aircraft,
+  source.arrived
+FROM (
+  SELECT
+    apr.activity_id AS "activityId",
+    p.ucid,
+    ${pilotCallsignSql} AS callsign,
+    plane.name AS aircraft,
+    apr.arrived
+  FROM ${tableActivityParticipationRequests} apr
+  INNER JOIN ${tablePilots} p ON p.id = apr.pilot_id
+  LEFT JOIN ${tablePlanes} plane ON plane.id = apr.aircraft_id
+  WHERE apr.activity_id = ANY($1::int[])
+
+  UNION ALL
+
+  SELECT
+    alloc.activity_id AS "activityId",
+    p.ucid,
+    ${pilotCallsignSql} AS callsign,
+    plane.name AS aircraft,
+    FALSE AS arrived
+  FROM ${tableActivitiesAllocations} alloc
+  INNER JOIN ${tableActivityAllocationTeamLeft} atl ON atl.activity_allocation_id = alloc.id
+  INNER JOIN ${tableAllocationTeamMembers} tm ON tm.id = atl.team_member_id
+  INNER JOIN ${tablePilots} p ON p.id = tm.pilot_id
+  LEFT JOIN ${tablePlanes} plane ON plane.id = tm.aircraft_id
+  WHERE alloc.activity_id = ANY($1::int[])
+    AND p.ucid IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    alloc.activity_id AS "activityId",
+    p.ucid,
+    ${pilotCallsignSql} AS callsign,
+    plane.name AS aircraft,
+    FALSE AS arrived
+  FROM ${tableActivitiesAllocations} alloc
+  INNER JOIN ${tableActivityAllocationTeamRight} atr ON atr.activity_allocation_id = alloc.id
+  INNER JOIN ${tableAllocationTeamMembers} tm ON tm.id = atr.team_member_id
+  INNER JOIN ${tablePilots} p ON p.id = tm.pilot_id
+  LEFT JOIN ${tablePlanes} plane ON plane.id = tm.aircraft_id
+  WHERE alloc.activity_id = ANY($1::int[])
+    AND p.ucid IS NOT NULL
+) source
+ORDER BY source."activityId", source.ucid, source.arrived DESC, source.callsign ASC
 `;
 
 export const queryProxyActivityAircrafts = `

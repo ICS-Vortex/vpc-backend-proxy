@@ -41,7 +41,44 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy release on dev VPS
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Sync source to dev VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -eu
+
+          REPO_DIR=/opt/virpil/dev/backend-proxy/repo
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          SSH_OPTS=(-i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes)
+
+          ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$REPO_DIR'"
+
+          rsync -az --delete \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude dist \
+            --exclude coverage \
+            --exclude .idea \
+            --exclude .deploy \
+            --exclude logs \
+            --exclude .env \
+            -e "ssh ${SSH_OPTS[*]}" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$REPO_DIR/"
+
+      - name: Build release and restart PM2 on dev VPS
         uses: appleboy/ssh-action@v1.2.1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -51,10 +88,8 @@ jobs:
           script: |
             set -eu
 
-            cd /opt/virpil/dev/backend-proxy/repo
-
-            git fetch origin dev
-            git reset --hard origin/dev
+            REPO_DIR=/opt/virpil/dev/backend-proxy/repo
+            cd "$REPO_DIR"
 
             WORKSPACE_DIR=/opt/virpil/dev/backend-proxy/repo \
             DEPLOY_ROOT=/opt/virpil/dev/backend-proxy \

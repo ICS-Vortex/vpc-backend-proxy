@@ -68,6 +68,7 @@ SELECT
   rs.allow_refuel AS "allowRefuel",
   rs.allow_multiple_entries AS "allowMultipleEntries",
   rs.mass_start AS "massStart",
+  rs.free_ac_choice AS "freeAcChoice",
   rs.attempt_time AS "attemptTime",
   rs.attempt_laps AS "attemptLaps",
   rs.allowed_aircraft AS "allowedAircraft",

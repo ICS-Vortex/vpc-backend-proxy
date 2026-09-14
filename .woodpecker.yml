@@ -1,0 +1,76 @@
+# Woodpecker CI — dev DCS LUA API (replaces GitHub Actions ci + deploy-dev).
+# Orchestration: deploy/woodpecker-backend-proxy-deploy-dev.sh on VPS.
+# Docs: vpc-docker-codebase docs/WOODPECKER_DEV.md
+
+when:
+  - event: push
+    branch: dev
+  - event: pull_request
+
+steps:
+  - name: check
+    image: node:24-bookworm
+    commands:
+      - npm install -g npm@latest
+      - npm ci
+      - npm run check
+      - npm run test
+      - npm run build
+
+  - name: build-image
+    image: docker:27-cli
+    when:
+      - event: push
+        branch: dev
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - |
+        set -euo pipefail
+        IMAGE_TAG=$(printf '%.7s' "$CI_COMMIT_SHA")
+        test -n "$IMAGE_TAG"
+        export DOCKER_BUILDKIT=1
+        docker build \
+          -t "vpc-backend-proxy:dev" \
+          -t "vpc-backend-proxy:$IMAGE_TAG" \
+          .
+
+  - name: deploy-dev
+    image: docker:27-cli
+    when:
+      - event: push
+        branch: dev
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/virpil/docker-dev:/opt/virpil/docker-dev
+    commands:
+      - |
+        set -euo pipefail
+        apk add --no-cache bash
+        DEPLOY_ROOT=/opt/virpil/docker-dev
+        IMAGE_TAG=$(printf '%.7s' "$CI_COMMIT_SHA")
+        test -d "$DEPLOY_ROOT"
+        test -x "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-dev.sh"
+        IMAGE_TAG="$IMAGE_TAG" DEPLOY_DIR="$DEPLOY_ROOT" \
+          "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-dev.sh"
+
+  - name: docker-cleanup
+    image: docker:27-cli
+    failure: ignore
+    when:
+      - event: push
+        branch: dev
+        status: [ success, failure ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/virpil/docker-dev:/opt/virpil/docker-dev
+    commands:
+      - |
+        set -eu
+        DEPLOY_ROOT=/opt/virpil/docker-dev
+        if [ -x "$DEPLOY_ROOT/deploy/woodpecker/docker-ci-prune.sh" ]; then
+          VPC_CI_IMAGE_REPOS="vpc-backend-proxy vpc-backend-node vpc-frontend vpc-backend-php vpc-backend-nginx" \
+            "$DEPLOY_ROOT/deploy/woodpecker/docker-ci-prune.sh" --light
+        else
+          docker image prune -f
+        fi

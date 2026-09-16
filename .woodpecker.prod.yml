@@ -1,0 +1,79 @@
+# DRAFT — production Woodpecker (DCS LUA read API / backend-proxy).
+# NOT ACTIVE. Manual deploy only.
+
+when:
+  - event: pull_request
+    branch: main
+  - event: manual
+
+steps:
+  - name: check
+    image: node:24-bookworm
+    when:
+      - event: pull_request
+        branch: main
+      - event: manual
+    commands:
+      - npm install -g npm@latest
+      - npm ci
+      - npm run check
+      - npm run test
+      - npm run build
+
+  - name: build-image
+    image: docker:27-cli
+    when:
+      - event: manual
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - |
+        set -euo pipefail
+        IMAGE_TAG=$(printf '%.7s' "$CI_COMMIT_SHA")
+        test -n "$IMAGE_TAG"
+        export DOCKER_BUILDKIT=1
+        docker build \
+          -t "vpc-backend-proxy:prod" \
+          -t "vpc-backend-proxy:$IMAGE_TAG" \
+          .
+
+  - name: deploy-prod
+    image: docker:27-cli
+    when:
+      - event: manual
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/vpc/virpil-servers-prod:/opt/vpc/virpil-servers-prod
+    commands:
+      - |
+        set -euo pipefail
+        apk add --no-cache bash
+        DEPLOY_ROOT=/opt/vpc/virpil-servers-prod
+        IMAGE_TAG=$(printf '%.7s' "$CI_COMMIT_SHA")
+        test -d "$DEPLOY_ROOT"
+        test -x "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh" || {
+          echo "draft: add deploy/woodpecker-backend-proxy-deploy-prod.sh" >&2
+          exit 1
+        }
+        IMAGE_TAG="$IMAGE_TAG" DEPLOY_DIR="$DEPLOY_ROOT" \
+          "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh"
+
+  - name: docker-cleanup
+    image: docker:27-cli
+    failure: ignore
+    when:
+      - event: manual
+      - status: [ success, failure ]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/vpc/virpil-servers-prod:/opt/vpc/virpil-servers-prod
+    commands:
+      - |
+        set -eu
+        DEPLOY_ROOT=/opt/vpc/virpil-servers-prod
+        if [ -x "$DEPLOY_ROOT/deploy/woodpecker/docker-ci-prune.sh" ]; then
+          VPC_CI_IMAGE_REPOS="vpc-backend-proxy vpc-backend-node vpc-frontend vpc-backend-php vpc-backend-nginx" \
+            "$DEPLOY_ROOT/deploy/woodpecker/docker-ci-prune.sh" --light
+        else
+          docker image prune -f
+        fi

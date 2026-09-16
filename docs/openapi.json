@@ -1,0 +1,1572 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "VIRPIL DCS LUA proxy (backend-proxy)",
+    "version": "lua-proxy-api-catalog.v1",
+    "description": "Plain HTTP/1.1 API for DCS mission LUA (no TLS in socket.http).\n\nHTTP/1.1 plain (no TLS in DCS LUA)\n\nSource: lua-proxy-api-catalog.json — regenerate with `make cms-ai-lua-proxy-catalog`."
+  },
+  "servers": [
+    {
+      "url": "http://proxy.vpc.local:4006",
+      "description": "Local / dev (typical)"
+    },
+    {
+      "url": "http://localhost:4006",
+      "description": "Direct port"
+    }
+  ],
+  "tags": [
+    {
+      "name": "proxy",
+      "description": "DCS server-scoped read API"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "DcsServer": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-DCS-SERVER",
+        "description": "Base64-encoded server identifier (must match active servers.identifier in DB)"
+      },
+      "DcsUcid": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-DCS-UCID",
+        "description": "Base64-encoded pilot UCID; used by some legacy rights logic (see /rights/list)"
+      }
+    },
+    "schemas": {
+      "ActivityScheduleItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer — activity id",
+            "nullable": false
+          },
+          "startTime": {
+            "type": "string",
+            "description": "string — YYYY-MM-DD HH24:MI:SS (server-local formatting from DB)",
+            "nullable": false
+          }
+        }
+      },
+      "Participant": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "ucid": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "callsign": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "aircraft": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "arrived": {
+            "type": "boolean",
+            "description": "boolean"
+          }
+        }
+      },
+      "ActivityAircraft": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "name": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          }
+        }
+      },
+      "TeamMember": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "ucid": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "callsign": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "aircraft": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          }
+        }
+      },
+      "Allocation": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "roundNumber": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "roundsPlayed": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "teamLeft": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamMember"
+            }
+          },
+          "teamRight": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamMember"
+            }
+          },
+          "teamLeftPoints": {
+            "type": "number",
+            "description": "number | null",
+            "nullable": true
+          },
+          "teamRightPoints": {
+            "type": "number",
+            "description": "number | null",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          }
+        }
+      },
+      "ActivityCurrent": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "type": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "status": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "titleEn": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "titleRu": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "slug": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "awaitTime": {
+            "description": "unknown — awaiting_time from DB"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "endTime": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "bestOf": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Participant"
+            }
+          },
+          "allocations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allocation"
+            }
+          },
+          "aircrafts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityAircraft"
+            }
+          },
+          "isTournament": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "isQualification": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "roundsToBePlayed": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "bestOfAllocation": {
+            "type": "string",
+            "description": "string — JSON array in DB, returned as stored",
+            "nullable": false
+          },
+          "seriesId": {
+            "type": "integer",
+            "description": "integer | null — only when includeSeriesFields=true (/activities/current)",
+            "nullable": true
+          },
+          "seriesRoundId": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "seriesTitle": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "roundTitle": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          }
+        }
+      },
+      "RaceTrackLayout": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "code": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "title": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "version": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "sectors": {
+            "description": "array — sector objects from DB jsonb_agg"
+          },
+          "configuration": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "object — optional parsed JSON"
+          }
+        }
+      },
+      "RaceTrackListItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "title": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "code": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "layouts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaceTrackLayout"
+            }
+          },
+          "configuration": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "object — optional"
+          }
+        }
+      },
+      "SeriesRound": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "seriesId": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "seriesTitleEn": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "position": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "titleEn": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "titleRu": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "entryType": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "startDate": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "bestResultsCount": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "status": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "schedulePattern": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "object"
+          }
+        }
+      },
+      "PilotRights": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "string",
+              "nullable": false
+            }
+          },
+          "isBanned": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "banRecords": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          }
+        }
+      },
+      "Race": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "title": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "seriesId": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "seriesRoundId": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "seriesTitle": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "roundTitle": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "endTime": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "endedAt": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "type": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "availableAircraft": {
+            "description": "unknown — DB column"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaceSession"
+            }
+          },
+          "aircrafts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "{ id: integer, name: string }"
+            }
+          },
+          "track": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "{ id, title, code } | — empty array when no track"
+            }
+          },
+          "layout": {
+            "$ref": "#/components/schemas/RaceTrackLayout"
+          }
+        }
+      },
+      "RaceSession": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "raceId": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "type": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "status": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "title": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "duration": {
+            "description": "unknown"
+          },
+          "overtime": {
+            "description": "unknown"
+          },
+          "laps": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "allowRefuel": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "allowMultipleEntries": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "massStart": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "attemptTime": {
+            "description": "unknown"
+          },
+          "attemptLaps": {
+            "description": "unknown"
+          },
+          "allowedAircraft": {
+            "description": "unknown"
+          },
+          "resultFormat": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "startTime": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "endedAt": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "description": "integer | null",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "{ pilotUcid, tries, consumedAircraft }"
+            }
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RaceResult"
+            }
+          }
+        }
+      },
+      "RaceResult": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "acType": {
+            "type": "string",
+            "description": "string — aircraft name",
+            "nullable": false
+          },
+          "pilotUcid": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "pilotName": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "result": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "laps": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "timings": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "description": "number — lap total times",
+              "nullable": false
+            }
+          }
+        }
+      },
+      "LegacyTrackConfig": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "name": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "waypoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "{ id, name, height, penalty }"
+            }
+          },
+          "difficulty": {
+            "description": "unknown"
+          },
+          "maxagl": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "oncourseinterval": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "offcourseinterval": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "string — aircraft names per category",
+                "nullable": false
+              }
+            }
+          },
+          "categorynames": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "string",
+              "nullable": false
+            }
+          },
+          "coalition": {
+            "description": "unknown"
+          },
+          "rankingalldisplay": {
+            "description": "unknown"
+          },
+          "rankingcategorydisplay": {
+            "description": "unknown"
+          },
+          "rankingheatdisplay": {
+            "description": "unknown"
+          },
+          "rankingflag": {
+            "description": "unknown"
+          },
+          "gatemaxagl": {
+            "description": "unknown"
+          },
+          "entrymsg": {
+            "type": "string",
+            "description": "string — LUA-escaped",
+            "nullable": false
+          },
+          "gatepenalty": {
+            "description": "unknown"
+          },
+          "entrygatepenalty": {
+            "description": "unknown"
+          },
+          "turngatepenalty": {
+            "description": "unknown"
+          },
+          "finishmsg": {
+            "description": "unknown"
+          },
+          "aircraftgroups": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Record<aircraftName, categoryName>"
+          }
+        }
+      },
+      "SeriesListItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "titleEn": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "titleRu": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "descriptionEn": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "descriptionRu": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "timezone": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "status": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "startAt": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "endAt": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          }
+        }
+      },
+      "SeriesStandingRow": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "pilotId": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "callsign": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "points": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "resultsCount": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "countedResultIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "description": "integer",
+              "nullable": false
+            }
+          }
+        }
+      },
+      "SeriesStandingsPayload": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "round": {
+            "$ref": "#/components/schemas/SeriesRound"
+          },
+          "standings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesStandingRow"
+            }
+          }
+        }
+      },
+      "SeriesPilotResultsPayload": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "round": {
+            "$ref": "#/components/schemas/SeriesRound"
+          },
+          "pilot": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "{ id: integer, callsign: string }"
+          },
+          "roundPoints": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPilotResult"
+            }
+          }
+        }
+      },
+      "SeriesPilotResult": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "integer",
+            "nullable": false
+          },
+          "sourceType": {
+            "type": "string",
+            "description": "string",
+            "nullable": false
+          },
+          "points": {
+            "type": "number",
+            "description": "number",
+            "nullable": false
+          },
+          "rawValue": {
+            "description": "unknown"
+          },
+          "occurredAt": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          },
+          "counted": {
+            "type": "boolean",
+            "description": "boolean"
+          },
+          "aircraft": {
+            "type": "string",
+            "description": "string | null",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "AuthForbidden": {
+        "description": "Invalid or missing X-DCS-SERVER",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "array",
+              "maxItems": 0,
+              "items": {},
+              "description": "Empty JSON array []"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Health check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "OK"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": []
+      },
+      "head": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Health check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "OK"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": []
+      }
+    },
+    "/ping": {
+      "post": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Keep-alive from mission LUA",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "description": "echo request or empty object"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "{\"ping\":\"boolean\"}"
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/activities/schedule": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Upcoming activity start times for the authenticated server",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityScheduleItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/activities/current": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "In-progress / allocated activities with participants, allocations, aircrafts (includes series fields)",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityCurrent"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/activities/{activity}/allocations": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "/activities/:activity/allocations",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [
+          {
+            "name": "activity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Activity id; invalid → []"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Allocation"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/pilots/banlist": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Active ban UCIDs for this server",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "string (ucid)"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/pilots/current": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Same activity payload as /activities/current but without series* fields (participants flattened per activity)",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityCurrent"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/pilots/{activity}/allocations": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "/pilots/:activity/allocations",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [
+          {
+            "name": "activity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Allocation"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/rights/list": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Pilot roles/ban summary (legacy Symfony parity — see code in rightsController)",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PilotRights"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/races/list": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Active races assigned to the authenticated server (excludes status ended/canceled). Includes nested sessions, attempts, results, aircraft list, track, and optional layout.",
+        "description": "- No URL path or query parameters — scope is only the server decoded from X-DCS-SERVER.\n- Implementation: ProxyRacingRepository.fetchProxyRaces → queryProxyRacesByServer.\n- Empty array when the server has no matching races (HTTP 200).\n**Errors:**\n- HTTP 403: `[]` — missing/invalid X-DCS-SERVER or inactive server identifier\n- HTTP 200: `[]` — no races for this server\nConventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Race"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/tracks/list": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Global race track catalog with layouts",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RaceTrackListItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/tracks/configs": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Track checkpoint configs for this server (DCS racing LUA)",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegacyTrackConfig"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/series/list": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Active series entries",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SeriesListItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/series/{series}/rounds": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "/series/:series/rounds",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [
+          {
+            "name": "series",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SeriesRound"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/series/rounds/{round}/standings": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "/series/rounds/:round/standings",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [
+          {
+            "name": "round",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesStandingsPayload"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    },
+    "/series/rounds/{round}/pilots/{pilot}/results": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "/series/rounds/:round/pilots/:pilot/results",
+        "description": "Conventions: {\"emptyNotFound\":\"Many invalid ids return HTTP 200 with [] instead of 404\",\"seriesNotFound\":\"Unknown series/round/pilot → HTTP 404 with body []\",\"rightsList\":\"GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)\",\"timestamps\":\"Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD\",\"trackField\":\"Race.track is object {id,title,code} or empty array [] when no track\"}",
+        "parameters": [
+          {
+            "name": "round",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          },
+          {
+            "name": "pilot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesPilotResultsPayload"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/AuthForbidden"
+          }
+        },
+        "security": [
+          {
+            "DcsServer": []
+          }
+        ]
+      }
+    }
+  }
+}

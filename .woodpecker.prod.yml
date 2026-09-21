@@ -51,10 +51,7 @@ steps:
         DEPLOY_ROOT=/opt/vpc/virpil-servers-prod
         IMAGE_TAG=$(printf '%.7s' "$CI_COMMIT_SHA")
         test -d "$DEPLOY_ROOT"
-        test -x "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh" || {
-          echo "draft: add deploy/woodpecker-backend-proxy-deploy-prod.sh" >&2
-          exit 1
-        }
+        test -x "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh"
         IMAGE_TAG="$IMAGE_TAG" DEPLOY_DIR="$DEPLOY_ROOT" \
           "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh"
 

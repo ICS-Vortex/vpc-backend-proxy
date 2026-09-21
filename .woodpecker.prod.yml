@@ -1,5 +1,5 @@
-# Production Woodpecker (DCS LUA read API / backend-proxy).
-# Push to main or manual deploy.
+# PROD pipeline (.woodpecker.prod.yml) — ci.virpil-servers.com → Settings → Pipeline path.
+# DEV pipeline — .woodpecker.yml
 
 when:
   - event: push

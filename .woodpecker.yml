@@ -1,6 +1,7 @@
+# DEV pipeline (.woodpecker.yml) — dev Woodpecker, default path (branch dev).
+# PROD pipeline — .woodpecker.prod.yml (ci.virpil-servers.com → Settings → Pipeline path).
+
 # Woodpecker CI — dev DCS LUA API (replaces GitHub Actions ci + deploy-dev).
-# Orchestration: deploy/woodpecker-backend-proxy-deploy-dev.sh on VPS.
-# Docs: vpc-docker-codebase docs/WOODPECKER_DEV.md
 
 when:
   - event: push

@@ -6,6 +6,8 @@ import { errorHandlerMiddleware } from '@/middleware/errorHandler';
 export const createApp = (): Express => {
   const app = express();
 
+  app.set('trust proxy', 1);
+
   app.use(helmet());
   app.use(json({ limit: '1mb' }));
   app.use(proxyRouter);

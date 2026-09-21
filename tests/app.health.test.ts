@@ -18,4 +18,11 @@ describe('backend-proxy health', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ ping: true });
   });
+
+  it('sets Helmet security headers', async () => {
+    const app = createApp();
+    const response = await request(app).get('/');
+
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
 });

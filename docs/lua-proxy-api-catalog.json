@@ -1,0 +1,369 @@
+{
+  "schemaVersion": "lua-proxy-api-catalog.v1",
+  "service": "backend-proxy",
+  "port": 4006,
+  "protocol": "HTTP/1.1 plain (no TLS in DCS LUA)",
+  "sourceRouter": "backend-proxy/src/routers/index.ts",
+  "headers": {
+    "X-DCS-SERVER": {
+      "required": true,
+      "description": "Base64-encoded server identifier (must match active servers.identifier in DB)",
+      "exceptRoutes": ["GET /", "HEAD /", "POST /ping"]
+    },
+    "X-DCS-UCID": {
+      "required": false,
+      "description": "Base64-encoded pilot UCID; used by some legacy rights logic (see /rights/list)"
+    }
+  },
+  "authFailure": {
+    "status": 403,
+    "body": "[]"
+  },
+  "developerReference": "backend/docs/cms/API_LUA_PROXY_DEVELOPER_REFERENCE.md",
+  "conventions": {
+    "emptyNotFound": "Many invalid ids return HTTP 200 with [] instead of 404",
+    "seriesNotFound": "Unknown series/round/pilot → HTTP 404 with body []",
+    "rightsList": "GET /rights/list returns 404+[] when X-DCS-UCID is set or when lookup returns null (Node port)",
+    "timestamps": "Most activity/race times: YYYY-MM-DD HH24:MI:SS; series round dates may be YYYY-MM-DD",
+    "trackField": "Race.track is object {id,title,code} or empty array [] when no track"
+  },
+  "types": {
+    "ActivityScheduleItem": {
+      "id": "integer — activity id",
+      "startTime": "string — YYYY-MM-DD HH24:MI:SS (server-local formatting from DB)"
+    },
+    "Participant": {
+      "ucid": "string | null",
+      "callsign": "string | null",
+      "aircraft": "string | null",
+      "arrived": "boolean"
+    },
+    "ActivityAircraft": {
+      "id": "integer",
+      "name": "string"
+    },
+    "TeamMember": {
+      "id": "integer",
+      "ucid": "string | null",
+      "callsign": "string | null",
+      "aircraft": "string | null"
+    },
+    "Allocation": {
+      "id": "integer",
+      "roundNumber": "integer | null",
+      "roundsPlayed": "integer | null",
+      "teamLeft": "TeamMember[]",
+      "teamRight": "TeamMember[]",
+      "teamLeftPoints": "number | null",
+      "teamRightPoints": "number | null",
+      "status": "string | null"
+    },
+    "ActivityCurrent": {
+      "id": "integer",
+      "type": "string",
+      "status": "string",
+      "titleEn": "string",
+      "titleRu": "string",
+      "slug": "string",
+      "awaitTime": "unknown — awaiting_time from DB",
+      "startTime": "string",
+      "endTime": "string",
+      "bestOf": "integer | null",
+      "participants": "Participant[]",
+      "allocations": "Allocation[]",
+      "aircrafts": "ActivityAircraft[]",
+      "isTournament": "boolean",
+      "isQualification": "boolean",
+      "roundsToBePlayed": "integer",
+      "bestOfAllocation": "string — JSON array in DB, returned as stored",
+      "seriesId": "integer | null — only when includeSeriesFields=true (/activities/current)",
+      "seriesRoundId": "integer | null",
+      "seriesTitle": "string | null",
+      "roundTitle": "string | null"
+    },
+    "RaceTrackLayout": {
+      "id": "integer",
+      "code": "string",
+      "title": "string",
+      "version": "integer | null",
+      "isActive": "boolean",
+      "sectors": "array — sector objects from DB jsonb_agg",
+      "configuration": "object — optional parsed JSON"
+    },
+    "RaceTrackListItem": {
+      "id": "integer",
+      "title": "string",
+      "code": "string",
+      "layouts": "RaceTrackLayout[]",
+      "configuration": "object — optional"
+    },
+    "SeriesRound": {
+      "id": "integer",
+      "seriesId": "integer | null",
+      "seriesTitleEn": "string | null",
+      "position": "integer",
+      "titleEn": "string",
+      "titleRu": "string",
+      "entryType": "string",
+      "startDate": "string | null",
+      "endDate": "string | null",
+      "timezone": "string",
+      "bestResultsCount": "integer",
+      "status": "string",
+      "schedulePattern": "object"
+    },
+    "PilotRights": {
+      "roles": "string[]",
+      "isBanned": "boolean",
+      "banRecords": "integer"
+    },
+    "Race": {
+      "id": "integer",
+      "title": "string",
+      "seriesId": "integer | null",
+      "seriesRoundId": "integer | null",
+      "seriesTitle": "string | null",
+      "roundTitle": "string | null",
+      "startTime": "string | null",
+      "endTime": "string | null",
+      "startedAt": "string | null",
+      "endedAt": "string | null",
+      "status": "string",
+      "type": "string",
+      "availableAircraft": "unknown — DB column",
+      "sessions": "RaceSession[]",
+      "aircrafts": "{ id: integer, name: string }[]",
+      "track": "{ id, title, code } | [] — empty array when no track",
+      "layout": "RaceTrackLayout — optional when layout resolved"
+    },
+    "RaceSession": {
+      "id": "integer",
+      "raceId": "integer",
+      "type": "string",
+      "status": "string",
+      "title": "string",
+      "duration": "unknown",
+      "overtime": "unknown",
+      "laps": "integer | null",
+      "allowRefuel": "boolean",
+      "allowMultipleEntries": "boolean",
+      "massStart": "boolean",
+      "attemptTime": "unknown",
+      "attemptLaps": "unknown",
+      "allowedAircraft": "unknown",
+      "resultFormat": "string",
+      "startTime": "string | null",
+      "startedAt": "string | null",
+      "endedAt": "string | null",
+      "maxAttempts": "integer | null",
+      "attempts": "{ pilotUcid, tries, consumedAircraft }[]",
+      "results": "RaceResult[]"
+    },
+    "RaceResult": {
+      "acType": "string — aircraft name",
+      "pilotUcid": "string",
+      "pilotName": "string",
+      "result": "number",
+      "laps": "integer",
+      "timings": "number[] — lap total times"
+    },
+    "LegacyTrackConfig": {
+      "code": "string",
+      "name": "string",
+      "waypoints": "{ id, name, height, penalty }[]",
+      "difficulty": "unknown",
+      "maxagl": "number",
+      "oncourseinterval": "number",
+      "offcourseinterval": "number",
+      "categories": "string[][] — aircraft names per category",
+      "categorynames": "string[]",
+      "coalition": "unknown",
+      "rankingalldisplay": "unknown",
+      "rankingcategorydisplay": "unknown",
+      "rankingheatdisplay": "unknown",
+      "rankingflag": "unknown",
+      "gatemaxagl": "unknown",
+      "entrymsg": "string — LUA-escaped",
+      "gatepenalty": "unknown",
+      "entrygatepenalty": "unknown",
+      "turngatepenalty": "unknown",
+      "finishmsg": "unknown",
+      "aircraftgroups": "Record<aircraftName, categoryName>"
+    },
+    "SeriesListItem": {
+      "id": "integer",
+      "titleEn": "string",
+      "titleRu": "string",
+      "descriptionEn": "string",
+      "descriptionRu": "string",
+      "timezone": "string",
+      "status": "string",
+      "startAt": "string",
+      "endAt": "string"
+    },
+    "SeriesStandingRow": {
+      "rank": "integer",
+      "pilotId": "integer",
+      "callsign": "string",
+      "points": "number",
+      "resultsCount": "integer",
+      "countedResultIds": "integer[]"
+    },
+    "SeriesStandingsPayload": {
+      "round": "SeriesRound",
+      "standings": "SeriesStandingRow[]"
+    },
+    "SeriesPilotResultsPayload": {
+      "round": "SeriesRound",
+      "pilot": "{ id: integer, callsign: string }",
+      "roundPoints": "number",
+      "results": "SeriesPilotResult[]"
+    },
+    "SeriesPilotResult": {
+      "id": "integer",
+      "sourceType": "string",
+      "points": "number",
+      "rawValue": "unknown",
+      "occurredAt": "string | null",
+      "counted": "boolean",
+      "aircraft": "string | null"
+    }
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "auth": false,
+      "description": "Health check",
+      "response": { "type": "text", "body": "OK" }
+    },
+    {
+      "method": "HEAD",
+      "path": "/",
+      "auth": false,
+      "description": "Health check",
+      "response": { "type": "text", "body": "OK" }
+    },
+    {
+      "method": "POST",
+      "path": "/ping",
+      "auth": false,
+      "description": "Keep-alive from mission LUA",
+      "requestBody": { "ping": "boolean" },
+      "response": { "type": "json", "schema": "echo request or empty object" }
+    },
+    {
+      "method": "GET",
+      "path": "/activities/schedule",
+      "auth": true,
+      "description": "Upcoming activity start times for the authenticated server",
+      "response": { "type": "array", "items": "ActivityScheduleItem" }
+    },
+    {
+      "method": "GET",
+      "path": "/activities/current",
+      "auth": true,
+      "description": "In-progress / allocated activities with participants, allocations, aircrafts (includes series fields)",
+      "response": { "type": "array", "items": "ActivityCurrent" }
+    },
+    {
+      "method": "GET",
+      "path": "/activities/:activity/allocations",
+      "auth": true,
+      "pathParams": [{ "name": "activity", "type": "integer", "description": "Activity id; invalid → []" }],
+      "response": { "type": "array", "items": "Allocation" }
+    },
+    {
+      "method": "GET",
+      "path": "/pilots/banlist",
+      "auth": true,
+      "description": "Active ban UCIDs for this server",
+      "response": { "type": "array", "items": "string (ucid)" }
+    },
+    {
+      "method": "GET",
+      "path": "/pilots/current",
+      "auth": true,
+      "description": "Same activity payload as /activities/current but without series* fields (participants flattened per activity)",
+      "response": { "type": "array", "items": "ActivityCurrent (series fields omitted)" }
+    },
+    {
+      "method": "GET",
+      "path": "/pilots/:activity/allocations",
+      "auth": true,
+      "pathParams": [{ "name": "activity", "type": "integer" }],
+      "response": { "type": "array", "items": "Allocation" }
+    },
+    {
+      "method": "GET",
+      "path": "/rights/list",
+      "auth": true,
+      "description": "Pilot roles/ban summary (legacy Symfony parity — see code in rightsController)",
+      "response": { "type": "object | empty", "schema": "PilotRights", "errors": "404 + [] when not found or when X-DCS-UCID header is set (current Node port)" }
+    },
+    {
+      "method": "GET",
+      "path": "/races/list",
+      "auth": true,
+      "description": "Active races assigned to the authenticated server (excludes status ended/canceled). Includes nested sessions, attempts, results, aircraft list, track, and optional layout.",
+      "pathParams": [],
+      "queryParams": [],
+      "notes": [
+        "No URL path or query parameters — scope is only the server decoded from X-DCS-SERVER.",
+        "Implementation: ProxyRacingRepository.fetchProxyRaces → queryProxyRacesByServer.",
+        "Empty array when the server has no matching races (HTTP 200)."
+      ],
+      "errors": [
+        { "status": 403, "body": "[]", "when": "missing/invalid X-DCS-SERVER or inactive server identifier" },
+        { "status": 200, "body": "[]", "when": "no races for this server" }
+      ],
+      "response": { "type": "array", "items": "Race" },
+      "curlExample": "B64=$(printf '%s' \"$SERVER_IDENTIFIER\" | base64 -w0)\ncurl -sS -H \"X-DCS-SERVER: $B64\" \"http://proxy.vpc.local:{port}/races/list\""
+    },
+    {
+      "method": "GET",
+      "path": "/tracks/list",
+      "auth": true,
+      "description": "Global race track catalog with layouts",
+      "response": { "type": "array", "items": "RaceTrackListItem" }
+    },
+    {
+      "method": "GET",
+      "path": "/tracks/configs",
+      "auth": true,
+      "description": "Track checkpoint configs for this server (DCS racing LUA)",
+      "response": { "type": "array", "items": "LegacyTrackConfig" }
+    },
+    {
+      "method": "GET",
+      "path": "/series/list",
+      "auth": true,
+      "description": "Active series entries",
+      "response": { "type": "array", "items": "SeriesListItem" }
+    },
+    {
+      "method": "GET",
+      "path": "/series/:series/rounds",
+      "auth": true,
+      "pathParams": [{ "name": "series", "type": "integer" }],
+      "response": { "type": "array", "items": "SeriesRound", "errors": "404 + [] if series missing" }
+    },
+    {
+      "method": "GET",
+      "path": "/series/rounds/:round/standings",
+      "auth": true,
+      "pathParams": [{ "name": "round", "type": "integer" }],
+      "response": { "type": "object", "schema": "SeriesStandingsPayload", "errors": "404 + [] if round missing" }
+    },
+    {
+      "method": "GET",
+      "path": "/series/rounds/:round/pilots/:pilot/results",
+      "auth": true,
+      "pathParams": [
+        { "name": "round", "type": "integer" },
+        { "name": "pilot", "type": "integer" }
+      ],
+      "response": { "type": "object", "schema": "SeriesPilotResultsPayload", "errors": "404 + [] if round or pilot not found" }
+    }
+  ]
+}

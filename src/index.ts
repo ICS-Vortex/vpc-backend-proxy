@@ -7,6 +7,7 @@ import http from 'http';
 import { config } from '@/config';
 import { createApp } from '@/createApp';
 import { logUnhandledRejection, logUncaughtException } from '@/observability/runtimeLogger';
+import { registerGracefulShutdown } from '@/observability/gracefulShutdown';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -16,6 +17,8 @@ server.listen(config.server.port, () => {
     `DCS LUA HTTP API on http://0.0.0.0:${config.server.port} (public vhost: http://${config.server.publicHost})`,
   );
 });
+
+registerGracefulShutdown({ server, logger });
 
 process.on('unhandledRejection', (reason) => {
   logUnhandledRejection(reason);

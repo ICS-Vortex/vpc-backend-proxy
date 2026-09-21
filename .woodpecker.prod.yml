@@ -1,7 +1,9 @@
-# DRAFT — production Woodpecker (DCS LUA read API / backend-proxy).
-# NOT ACTIVE. Manual deploy only.
+# Production Woodpecker (DCS LUA read API / backend-proxy).
+# Push to main or manual deploy.
 
 when:
+  - event: push
+    branch: main
   - event: pull_request
     branch: main
   - event: manual
@@ -10,6 +12,8 @@ steps:
   - name: check
     image: node:24-bookworm
     when:
+      - event: push
+        branch: main
       - event: pull_request
         branch: main
       - event: manual
@@ -23,6 +27,8 @@ steps:
   - name: build-image
     image: docker:27-cli
     when:
+      - event: push
+        branch: main
       - event: manual
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -40,6 +46,8 @@ steps:
   - name: deploy-prod
     image: docker:27-cli
     when:
+      - event: push
+        branch: main
       - event: manual
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -59,6 +67,8 @@ steps:
     image: docker:27-cli
     failure: ignore
     when:
+      - event: push
+        branch: main
       - event: manual
       - status: [ success, failure ]
     volumes:

@@ -52,25 +52,25 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/vpc/virpil-servers-prod:/opt/vpc/virpil-servers-prod
+      - /root/.ssh:/root/.ssh:ro
     commands:
       - |
         set -euo pipefail
-        apk add --no-cache bash curl python3 git
+        apk add --no-cache bash curl python3 git openssh-client
         DEPLOY_ROOT=/opt/vpc/virpil-servers-prod
         IMAGE_TAG=$(printf '%.7s' "$CI_COMMIT_SHA")
         test -d "$DEPLOY_ROOT"
-        export DEPLOY_ROOT IMAGE_TAG
-        export ORCHESTRATION_GITHUB_TOKEN="${composer_github_token:-${github_token:-}}"
-        if [ -x "$DEPLOY_ROOT/deploy/woodpecker/ci-run-app-deploy.sh" ]; then
-          "$DEPLOY_ROOT/deploy/woodpecker/ci-run-app-deploy.sh" woodpecker-backend-proxy-deploy-prod.sh
-        elif [ -x "$DEPLOY_ROOT/deploy/woodpecker/ci-fetch-and-run-app-deploy.sh" ]; then
-          "$DEPLOY_ROOT/deploy/woodpecker/ci-fetch-and-run-app-deploy.sh" woodpecker-backend-proxy-deploy-prod.sh
+        export DEPLOY_ROOT IMAGE_TAG DEPLOY_DIR="$DEPLOY_ROOT"
+        export ORCHESTRATION_GITHUB_TOKEN="${COMPOSER_GITHUB_TOKEN:-}"
+        ENTRY="$DEPLOY_ROOT/deploy/woodpecker/ci-deploy-prod-entry.sh"
+        if [ -x "$ENTRY" ]; then
+          "$ENTRY" woodpecker-backend-proxy-deploy-prod.sh
         else
-          curl -fsSL \
-            -H "Authorization: Bearer ${ORCHESTRATION_GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "https://api.github.com/repos/ICS-Vortex/vpc-docker-codebase/contents/deploy/woodpecker/ci-fetch-and-run-app-deploy.sh?ref=main" \
-            | bash -s -- woodpecker-backend-proxy-deploy-prod.sh
+          git -C "$DEPLOY_ROOT" config --global --add safe.directory "$DEPLOY_ROOT" 2>/dev/null || true
+          git -C "$DEPLOY_ROOT" pull --ff-only origin main 2>/dev/null || true
+          find "$DEPLOY_ROOT/deploy" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
+          test -x "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh"
+          "$DEPLOY_ROOT/deploy/woodpecker-backend-proxy-deploy-prod.sh"
         fi
 
   - name: docker-cleanup

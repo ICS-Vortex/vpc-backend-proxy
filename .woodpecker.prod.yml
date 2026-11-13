@@ -94,3 +94,28 @@ steps:
         else
           docker image prune -f
         fi
+
+  - name: discord-notify
+    image: alpine:3.21
+    failure: ignore
+    environment:
+      DISCORD_CI_DEPLOY_WEBHOOK:
+        from_secret: discord_ci_deploy_webhook
+    when:
+      - event: push
+        branch: main
+      - event: pull_request
+        branch: main
+      - event: manual
+      - status: [ success, failure ]
+    volumes:
+      - /opt/vpc/virpil-servers-prod:/opt/vpc/virpil-servers-prod:ro
+    commands:
+      - apk add --no-cache curl python3
+      - DEPLOY_ROOT=/opt/vpc/virpil-servers-prod
+      - |
+        if [ -x "$DEPLOY_ROOT/deploy/woodpecker/discord-ci-notify.sh" ]; then
+          "$DEPLOY_ROOT/deploy/woodpecker/discord-ci-notify.sh" --service backend-proxy --environment prod
+        else
+          echo "discord-ci-notify.sh missing on VPS (sync orchestration prod first)" >&2
+        fi
